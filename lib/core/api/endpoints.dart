@@ -1,41 +1,72 @@
 /// MyHealthBuddy API 엔드포인트 정의
-/// 웹 저장소(src/api/endpoints.ts) 기준으로 작성
 abstract final class Endpoints {
   // ── Base ───────────────────────────────────────────
-  /// 환경별 Base URL (.env의 VITE_API_BASE_URL 대응)
-  /// 실제 배포 시 변경 필요
-  static const String baseUrl = 'https://api.myhealthbuddy.com';
+  static const String baseUrl = 'http://54.180.116.239';
   static const String apiVersion = '/api/v1';
 
-  // ── Auth ───────────────────────────────────────────
-  /// Google OAuth 로그인
+  // ── Auth (SEC) ─────────────────────────────────────
+  /// POST {code} → access_token + user
   static const String loginGoogle = '$apiVersion/auth/login/google';
 
-  /// 액세스 토큰 갱신
+  /// GET (refresh_token cookie) → access_token
   static const String tokenRefresh = '$apiVersion/auth/token/refresh';
 
-  // ── User ───────────────────────────────────────────
-  /// 대시보드 데이터 조회
+  // ── User (USER) ────────────────────────────────────
+  /// GET → dashboard summary
   static const String dashboard = '$apiVersion/users/dashboard';
 
-  /// 프로필 정보 조회
+  /// PUT {gender, birth_year} → user profile (최초 1회)
+  static const String profileInitial = '$apiVersion/users/profile/initial';
+
+  /// PATCH {nickname?, profile_image?, birth_year?} → user profile
   static const String profile = '$apiVersion/users/profile';
 
-  /// 회원 탈퇴
-  static const String withdraw = '$apiVersion/users/withdraw';
+  // ── Health Records (HLTH) ──────────────────────────
+  /// POST → health record
+  static const String healthRecords = '$apiVersion/health/records';
 
-  // ── Health ─────────────────────────────────────────
-  /// 건강 데이터 제출
-  static const String healthInput = '$apiVersion/health/input';
+  /// GET / PATCH / DELETE
+  static String healthRecord(int id) => '$apiVersion/health/records/$id';
 
-  /// 건강 분석 결과 조회
-  static const String healthResult = '$apiVersion/health/result';
+  // ── AI Analysis (HLTH) ────────────────────────────
+  /// POST (JWT) → analysis result or task_id
+  static String analysis(int recordId) =>
+      '$apiVersion/health/analysis/$recordId';
 
-  // ── Challenge ──────────────────────────────────────
-  /// 챌린지 목록 조회
-  static const String challenges = '$apiVersion/challenges';
+  /// POST (no auth) → analysis result or task_id
+  static const String analysisGuest = '$apiVersion/health/analysis/guest';
 
-  /// 챌린지 완료 처리
-  static String challengeComplete(String id) =>
-      '$apiVersion/challenges/$id/complete';
+  /// GET → long-poll 최대 30초 대기
+  static String analysisWait(String taskId) =>
+      '$apiVersion/health/analysis/$taskId/wait';
+
+  /// GET → 즉시 현재 상태 반환
+  static String analysisStatus(String taskId) =>
+      '$apiVersion/health/analysis/$taskId';
+
+  // ── Social – Friends (SOCL) ────────────────────────
+  /// GET → friend list
+  static const String friends = '$apiVersion/social/friends';
+
+  /// DELETE {friend_id}
+  static String friend(int friendId) =>
+      '$apiVersion/social/friends/$friendId';
+
+  /// GET → received pending requests
+  static const String friendRequests = '$apiVersion/social/friends/requests';
+
+  /// POST {receiver_id}
+  static String sendFriendRequest(int receiverId) =>
+      '$apiVersion/social/friends/request/$receiverId';
+
+  /// PATCH → accept
+  static String acceptRequest(int requestId) =>
+      '$apiVersion/social/friends/requests/$requestId/accept';
+
+  /// PATCH → reject
+  static String rejectRequest(int requestId) =>
+      '$apiVersion/social/friends/requests/$requestId/reject';
+
+  /// GET ?nickname=... → search users (max 20)
+  static const String userSearch = '$apiVersion/social/users/search';
 }
