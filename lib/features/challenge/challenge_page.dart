@@ -117,31 +117,31 @@ class _ChallengePageState extends State<ChallengePage> {
         ),
       ),
 
-      // ── 하단 네비게이션 ────────────────────────────
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: 1,
-        onTap: (index) {
+      // ── 하단 네비게이션 (Material 3) ──────────────────
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: 1,
+        onDestinationSelected: (index) {
           if (index == 0) context.go(AppRoutes.dashboard);
         },
-        items: const [
-          BottomNavigationBarItem(
+        destinations: const [
+          NavigationDestination(
             icon: Icon(Icons.home_outlined),
-            activeIcon: Icon(Icons.home),
+            selectedIcon: Icon(Icons.home_rounded),
             label: '홈',
           ),
-          BottomNavigationBarItem(
+          NavigationDestination(
             icon: Icon(Icons.emoji_events_outlined),
-            activeIcon: Icon(Icons.emoji_events),
+            selectedIcon: Icon(Icons.emoji_events_rounded),
             label: '챌린지',
           ),
-          BottomNavigationBarItem(
+          NavigationDestination(
             icon: Icon(Icons.people_outline),
-            activeIcon: Icon(Icons.people),
+            selectedIcon: Icon(Icons.people_rounded),
             label: '친구',
           ),
-          BottomNavigationBarItem(
+          NavigationDestination(
             icon: Icon(Icons.person_outline),
-            activeIcon: Icon(Icons.person),
+            selectedIcon: Icon(Icons.person_rounded),
             label: '프로필',
           ),
         ],
