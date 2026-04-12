@@ -1,24 +1,64 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/health/health_provider.dart';
+import '../../core/models/health_models.dart';
 import '../../core/router/app_router.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 
 /// 건강 분석 결과 페이지
-/// 웹: pages/Result/ResultPage.tsx 대응
-/// - 심혈관 위험도 평가 (low / medium / high)
-/// - 건강 점수 (0-100)
-/// - 위험 요인 목록
-/// - 챌린지 추천
-class ResultPage extends StatelessWidget {
+/// healthProvider의 analysisResult를 표시
+class ResultPage extends ConsumerWidget {
   const ResultPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    // TODO: Riverpod으로 실제 분석 데이터 연결
-    const riskLevel = 'low';
-    const healthScore = 82;
-    const cardioAge = 38;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final healthState = ref.watch(healthProvider);
+    final result = healthState.analysisResult;
+
+    // 아직 분석 중이거나 결과 없음
+    if (result == null || healthState.isAnalyzing) {
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: AppBar(title: const Text('건강 분석 결과')),
+        body: const Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 20),
+              Text('AI가 분석 중입니다...'),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (result.isFailed) {
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: AppBar(title: const Text('건강 분석 결과')),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error_outline, size: 64, color: AppColors.statusHigh),
+              const SizedBox(height: 16),
+              const Text('분석에 실패했습니다.'),
+              const SizedBox(height: 12),
+              ElevatedButton(
+                onPressed: () => context.go(AppRoutes.healthInput),
+                child: const Text('다시 시도'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final predict = result.ml1Predict!;
+    final comment = result.ml1Comment!;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -36,23 +76,19 @@ class ResultPage extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // ── 요약 카드 ─────────────────────────
-              _SummaryCard(
-                riskLevel: riskLevel,
-                healthScore: healthScore,
-                cardioAge: cardioAge,
-              ),
+              _SummaryCard(predict: predict),
               const SizedBox(height: 16),
 
               // ── 위험 요인 ─────────────────────────
-              _RiskFactorCard(),
+              _RiskFactorCard(factors: predict.topRiskFactors),
               const SizedBox(height: 16),
 
               // ── AI 코멘트 ─────────────────────────
-              _AiCommentCard(riskLevel: riskLevel),
+              _AiCommentCard(comment: comment),
               const SizedBox(height: 16),
 
-              // ── 추천 챌린지 ───────────────────────
-              _RecommendedChallenges(),
+              // ── 맞춤 미션 ─────────────────────────
+              _MissionsCard(missions: comment.missions),
               const SizedBox(height: 32),
 
               // ── 대시보드로 이동 ───────────────────
@@ -75,7 +111,8 @@ class ResultPage extends StatelessWidget {
               Text(
                 '※ 이 결과는 참고용이며 실제 의학적 진단을 대체하지 않습니다.',
                 textAlign: TextAlign.center,
-                style: AppTextStyles.labelSmall.copyWith(color: AppColors.textMuted),
+                style: AppTextStyles.labelSmall
+                    .copyWith(color: AppColors.textMuted),
               ),
               const SizedBox(height: 16),
             ],
@@ -88,30 +125,23 @@ class ResultPage extends StatelessWidget {
 
 // ── 요약 카드 ──────────────────────────────────────────
 class _SummaryCard extends StatelessWidget {
-  final String riskLevel;
-  final int healthScore;
-  final int cardioAge;
-  const _SummaryCard({
-    required this.riskLevel,
-    required this.healthScore,
-    required this.cardioAge,
-  });
+  final Ml1Predict predict;
+  const _SummaryCard({required this.predict});
 
   Color get _riskColor {
-    switch (riskLevel) {
-      case 'low':    return AppColors.statusLow;
-      case 'medium': return AppColors.statusMedium;
-      case 'high':   return AppColors.statusHigh;
-      default:       return AppColors.textMuted;
-    }
-  }
-
-  String get _riskLabel {
-    switch (riskLevel) {
-      case 'low':    return '낮음';
-      case 'medium': return '보통';
-      case 'high':   return '높음';
-      default:       return '-';
+    switch (predict.riskGrade) {
+      case '낮음':
+        return AppColors.statusLow;
+      case '보통':
+        return AppColors.statusMedium;
+      case '중간':
+        return AppColors.statusMedium;
+      case '높음':
+        return AppColors.statusHigh;
+      case '매우높음':
+        return AppColors.statusHigh;
+      default:
+        return AppColors.textMuted;
     }
   }
 
@@ -133,34 +163,37 @@ class _SummaryCard extends StatelessWidget {
             children: [
               _MetricItem(
                 label: '심혈관 위험도',
-                value: _riskLabel,
+                value: predict.riskGrade,
                 valueColor: _riskColor,
               ),
               _Divider(),
               _MetricItem(
-                label: '건강 점수',
-                value: '$healthScore점',
+                label: '위험도 (%)',
+                value: '${predict.riskPercent.toStringAsFixed(1)}%',
                 valueColor: AppColors.primary,
               ),
               _Divider(),
               _MetricItem(
                 label: '심혈관 나이',
-                value: '$cardioAge세',
+                value: '${predict.heartAge}세',
                 valueColor: AppColors.textDashboard,
               ),
             ],
           ),
-          const SizedBox(height: 24),
-          // 건강 점수 진행 바
+          const SizedBox(height: 20),
+          // 위험도 프로그레스 바
           ClipRRect(
             borderRadius: BorderRadius.circular(6),
             child: LinearProgressIndicator(
-              value: healthScore / 100,
+              value: (predict.riskPercent / 100).clamp(0.0, 1.0),
               backgroundColor: AppColors.borderDefault,
-              color: AppColors.primary,
+              color: _riskColor,
               minHeight: 10,
             ),
           ),
+          const SizedBox(height: 16),
+          // 캐릭터 단계
+          _CharacterStageBadge(stage: predict.characterStage),
         ],
       ),
     );
@@ -171,13 +204,16 @@ class _MetricItem extends StatelessWidget {
   final String label;
   final String value;
   final Color valueColor;
-  const _MetricItem({required this.label, required this.value, required this.valueColor});
+  const _MetricItem(
+      {required this.label, required this.value, required this.valueColor});
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Text(value, style: AppTextStyles.metric.copyWith(color: valueColor, fontSize: 22)),
+        Text(value,
+            style: AppTextStyles.metric
+                .copyWith(color: valueColor, fontSize: 20)),
         const SizedBox(height: 4),
         Text(label, style: AppTextStyles.labelSmall),
       ],
@@ -192,13 +228,49 @@ class _Divider extends StatelessWidget {
   }
 }
 
+class _CharacterStageBadge extends StatelessWidget {
+  final int stage;
+  const _CharacterStageBadge({required this.stage});
+
+  static const _labels = ['새싹', '초보', '중수', '고수', '마스터'];
+  static const _colors = [
+    Color(0xFF86EFAC),
+    Color(0xFF60A5FA),
+    Color(0xFFFBBF24),
+    Color(0xFFF97316),
+    Color(0xFFEF4444),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final idx = (stage - 1).clamp(0, 4);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: _colors[idx].withAlpha(30),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: _colors[idx]),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.star_rounded, size: 16),
+          const SizedBox(width: 6),
+          Text(
+            '건강 레벨 $stage · ${_labels[idx]}',
+            style: AppTextStyles.labelMedium
+                .copyWith(color: _colors[idx], fontWeight: FontWeight.w700),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 // ── 위험 요인 카드 ─────────────────────────────────────
 class _RiskFactorCard extends StatelessWidget {
-  // TODO: 실제 데이터로 대체
-  final List<String> _factors = const [
-    '혈압이 정상 범위를 약간 초과했습니다.',
-    '규칙적인 운동이 부족합니다.',
-  ];
+  final List<String> factors;
+  const _RiskFactorCard({required this.factors});
 
   @override
   Widget build(BuildContext context) {
@@ -214,16 +286,18 @@ class _RiskFactorCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.warning_amber_outlined, color: AppColors.statusMedium, size: 20),
+              const Icon(Icons.warning_amber_outlined,
+                  color: AppColors.statusMedium, size: 20),
               const SizedBox(width: 8),
-              Text('위험 요인', style: AppTextStyles.titleLarge),
+              Text('주요 위험 요인', style: AppTextStyles.titleLarge),
             ],
           ),
           const SizedBox(height: 16),
-          if (_factors.isEmpty)
-            Text('위험 요인이 없습니다! 건강한 상태입니다.', style: AppTextStyles.bodyMedium)
+          if (factors.isEmpty)
+            Text('위험 요인이 없습니다! 건강한 상태입니다.',
+                style: AppTextStyles.bodyMedium)
           else
-            ..._factors.map(
+            ...factors.map(
               (f) => Padding(
                 padding: const EdgeInsets.only(bottom: 10),
                 child: Row(
@@ -239,7 +313,8 @@ class _RiskFactorCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 10),
-                    Expanded(child: Text(f, style: AppTextStyles.bodyMedium)),
+                    Expanded(
+                        child: Text(f, style: AppTextStyles.bodyMedium)),
                   ],
                 ),
               ),
@@ -252,21 +327,8 @@ class _RiskFactorCard extends StatelessWidget {
 
 // ── AI 코멘트 카드 ─────────────────────────────────────
 class _AiCommentCard extends StatelessWidget {
-  final String riskLevel;
-  const _AiCommentCard({required this.riskLevel});
-
-  String get _comment {
-    switch (riskLevel) {
-      case 'low':
-        return '전반적으로 건강한 상태입니다. 현재의 좋은 습관을 유지하고, 꾸준한 운동과 균형 잡힌 식단으로 건강을 지속하세요.';
-      case 'medium':
-        return '몇 가지 위험 요인이 발견되었습니다. 생활 습관 개선이 필요하며, 정기적인 건강 검진을 권장합니다.';
-      case 'high':
-        return '심혈관 위험 요인이 높습니다. 즉각적인 생활 습관 개선과 의료 전문가 상담을 강력히 권장합니다.';
-      default:
-        return '';
-    }
-  }
+  final Ml1Comment comment;
+  const _AiCommentCard({required this.comment});
 
   @override
   Widget build(BuildContext context) {
@@ -282,30 +344,63 @@ class _AiCommentCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.auto_awesome, color: AppColors.primary, size: 20),
+              const Icon(Icons.auto_awesome,
+                  color: AppColors.primary, size: 20),
               const SizedBox(width: 8),
-              Text('AI 분석 코멘트', style: AppTextStyles.titleLarge),
+              Text('AI 건강 평가', style: AppTextStyles.titleLarge),
             ],
           ),
           const SizedBox(height: 12),
-          Text(_comment, style: AppTextStyles.bodyMedium.copyWith(height: 1.7)),
+          Text(comment.evaluation,
+              style: AppTextStyles.bodyMedium.copyWith(height: 1.7)),
+          if (comment.alert != null) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.statusHigh.withAlpha(20),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AppColors.statusHigh),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.warning_rounded,
+                      color: AppColors.statusHigh, size: 16),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      comment.alert!,
+                      style: AppTextStyles.bodySmall
+                          .copyWith(color: AppColors.statusHigh),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          const SizedBox(height: 12),
+          Text(
+            comment.encouragement,
+            style: AppTextStyles.bodySmall.copyWith(
+              color: AppColors.primary,
+              fontStyle: FontStyle.italic,
+            ),
+          ),
         ],
       ),
     );
   }
 }
 
-// ── 추천 챌린지 ────────────────────────────────────────
-class _RecommendedChallenges extends StatelessWidget {
-  // TODO: API 연동
-  final List<Map<String, dynamic>> _challenges = const [
-    {'icon': Icons.directions_walk, 'title': '매일 30분 걷기', 'desc': '심혈관 건강에 최고의 운동'},
-    {'icon': Icons.water_drop_outlined, 'title': '하루 8잔 물 마시기', 'desc': '적정 수분 섭취로 혈액 순환 개선'},
-    {'icon': Icons.eco_outlined, 'title': '채소 반찬 1가지 추가', 'desc': '식이섬유로 콜레스테롤 관리'},
-  ];
+// ── 맞춤 미션 카드 ─────────────────────────────────────
+class _MissionsCard extends StatelessWidget {
+  final List<String> missions;
+  const _MissionsCard({required this.missions});
 
   @override
   Widget build(BuildContext context) {
+    if (missions.isEmpty) return const SizedBox.shrink();
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -318,35 +413,40 @@ class _RecommendedChallenges extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.emoji_events_outlined, color: AppColors.primary, size: 20),
+              const Icon(Icons.emoji_events_outlined,
+                  color: AppColors.primary, size: 20),
               const SizedBox(width: 8),
-              Text('추천 챌린지', style: AppTextStyles.titleLarge),
+              Text('맞춤 건강 미션', style: AppTextStyles.titleLarge),
             ],
           ),
           const SizedBox(height: 16),
-          ..._challenges.map(
-            (c) => Padding(
+          ...missions.asMap().entries.map(
+            (entry) => Padding(
               padding: const EdgeInsets.only(bottom: 12),
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
-                    width: 44,
-                    height: 44,
+                    width: 24,
+                    height: 24,
                     decoration: BoxDecoration(
                       color: AppColors.primarySurface,
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(6),
                     ),
-                    child: Icon(c['icon'] as IconData, color: AppColors.primary, size: 22),
+                    child: Center(
+                      child: Text(
+                        '${entry.key + 1}',
+                        style: AppTextStyles.labelSmall.copyWith(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 10),
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(c['title'] as String, style: AppTextStyles.titleSmall),
-                        Text(c['desc'] as String, style: AppTextStyles.bodySmall),
-                      ],
-                    ),
+                    child: Text(entry.value,
+                        style: AppTextStyles.bodyMedium),
                   ),
                 ],
               ),
