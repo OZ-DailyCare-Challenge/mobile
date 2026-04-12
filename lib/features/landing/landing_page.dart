@@ -1,282 +1,267 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/router/app_router.dart';
 import '../../core/theme/app_colors.dart';
-import '../../core/theme/app_text_styles.dart';
 
-/// 랜딩 페이지
-/// 웹: pages/Landing/LandingPage.tsx 대응
-/// - 앱 소개 및 주요 기능 쇼케이스
-/// - 시작하기(로그인) CTA 버튼
-class LandingPage extends StatelessWidget {
+/// 랜딩 페이지 (모바일 온보딩)
+/// 풀스크린 PageView로 3개의 슬라이드를 보여주고
+/// 마지막 슬라이드에서 로그인 화면으로 이동
+class LandingPage extends StatefulWidget {
   const LandingPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
-            children: [
-              // ── Hero 섹션 ───────────────────────────
-              _HeroSection(
-                onStart: () => context.go(AppRoutes.login),
-              ),
-
-              // ── Feature 섹션 ────────────────────────
-              const _FeatureSection(),
-
-              // ── Bottom CTA 섹션 ─────────────────────
-              _BottomCTASection(
-                onStart: () => context.go(AppRoutes.login),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+  State<LandingPage> createState() => _LandingPageState();
 }
 
-// ── Hero 섹션 ──────────────────────────────────────────
-class _HeroSection extends StatelessWidget {
-  final VoidCallback onStart;
-  const _HeroSection({required this.onStart});
+class _LandingPageState extends State<LandingPage> {
+  final PageController _controller = PageController();
+  int _currentPage = 0;
 
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      decoration: const BoxDecoration(
-        gradient: AppColors.heroGradient,
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 64),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 로고
-          Text(
-            'MyHealthBuddy',
-            style: AppTextStyles.logo.copyWith(color: Colors.white),
-          ),
-          const SizedBox(height: 32),
-
-          // 메인 타이틀
-          Text(
-            'AI가 분석하는\n나만의 건강 관리',
-            style: AppTextStyles.displayLarge.copyWith(
-              color: Colors.white,
-              height: 1.25,
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // 서브 타이틀
-          Text(
-            '건강검진 데이터와 생활 습관을\n실행 가능한 건강 챌린지로 변환합니다.',
-            style: AppTextStyles.bodyLarge.copyWith(
-              color: Colors.white.withAlpha(204),
-              height: 1.6,
-            ),
-          ),
-          const SizedBox(height: 40),
-
-          // CTA 버튼
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: onStart,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primaryLight,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-              ),
-              child: const Text(
-                '지금 시작하기',
-                style: TextStyle(
-                  fontFamily: 'Pretendard',
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.white,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Feature 섹션 ───────────────────────────────────────
-class _FeatureSection extends StatelessWidget {
-  const _FeatureSection();
-
-  static const List<_FeatureData> _features = [
-    _FeatureData(
-      icon: Icons.analytics_outlined,
-      title: 'AI 건강 분석',
-      description: '심혈관 위험도를 포함한\n맞춤형 건강 분석 결과를 제공합니다.',
+  static const List<_OnboardingData> _pages = [
+    _OnboardingData(
+      emoji: '🏥',
+      title: 'AI가 분석하는\n나만의 건강 관리',
+      subtitle: '건강검진 데이터를 입력하면\nAI가 맞춤형 건강 분석을 제공합니다.',
     ),
-    _FeatureData(
-      icon: Icons.emoji_events_outlined,
-      title: '일일 챌린지',
-      description: '매일 작은 건강 습관을\n챌린지로 만들어 실천해보세요.',
+    _OnboardingData(
+      emoji: '🏆',
+      title: '매일 작은 챌린지로\n건강 습관 만들기',
+      subtitle: '작은 실천이 쌓여\n큰 건강 변화를 만들어냅니다.',
     ),
-    _FeatureData(
-      icon: Icons.people_outline,
-      title: '친구와 함께',
-      description: '친구와 챌린지를 공유하고\n함께 건강해져요.',
-    ),
-    _FeatureData(
-      icon: Icons.track_changes_outlined,
-      title: '건강 추적',
-      description: '혈압, 혈당, 콜레스테롤 등\n주요 건강 지표를 추적합니다.',
+    _OnboardingData(
+      emoji: '👥',
+      title: '친구와 함께\n더 건강하게',
+      subtitle: '챌린지를 친구와 공유하고\n함께 건강 목표를 달성해요.',
     ),
   ];
 
   @override
+  void initState() {
+    super.initState();
+    // 온보딩 화면에서는 상태바 아이콘을 흰색으로
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        statusBarIconBrightness: Brightness.light,
+        statusBarColor: Colors.transparent,
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _next() {
+    if (_currentPage < _pages.length - 1) {
+      _controller.nextPage(
+        duration: const Duration(milliseconds: 350),
+        curve: Curves.easeInOut,
+      );
+    } else {
+      _goToLogin();
+    }
+  }
+
+  void _goToLogin() {
+    // 로그인 화면에서는 상태바 아이콘 다시 어둡게
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        statusBarIconBrightness: Brightness.dark,
+        statusBarColor: Colors.transparent,
+      ),
+    );
+    context.go(AppRoutes.login);
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 48),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    final isLast = _currentPage == _pages.length - 1;
+
+    return Scaffold(
+      body: Stack(
         children: [
-          Text('주요 기능', style: Theme.of(context).textTheme.headlineMedium),
-          const SizedBox(height: 8),
-          Text(
-            '건강한 삶을 위한 모든 기능',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppColors.textMuted,
-                ),
+          // ── 배경 그래디언트 ───────────────────────────
+          Container(
+            decoration: const BoxDecoration(gradient: AppColors.heroGradient),
           ),
-          const SizedBox(height: 32),
-          ...(_features.map((f) => _FeatureCard(data: f))),
+
+          // ── 슬라이드 콘텐츠 ───────────────────────────
+          PageView.builder(
+            controller: _controller,
+            onPageChanged: (i) => setState(() => _currentPage = i),
+            itemCount: _pages.length,
+            itemBuilder: (context, i) => _OnboardingSlide(data: _pages[i]),
+          ),
+
+          // ── 상단: 건너뛰기 버튼 ───────────────────────
+          Positioned(
+            top: 0,
+            right: 0,
+            child: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: AnimatedOpacity(
+                  opacity: isLast ? 0.0 : 1.0,
+                  duration: const Duration(milliseconds: 200),
+                  child: TextButton(
+                    onPressed: isLast ? null : _goToLogin,
+                    child: const Text(
+                      '건너뛰기',
+                      style: TextStyle(
+                        fontFamily: 'Pretendard',
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.white60,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          // ── 하단: 페이지 닷 + 버튼 ───────────────────
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(24, 0, 24, 36),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // 페이지 인디케이터 닷
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: List.generate(_pages.length, (i) {
+                        final isActive = i == _currentPage;
+                        return AnimatedContainer(
+                          duration: const Duration(milliseconds: 300),
+                          margin: const EdgeInsets.symmetric(horizontal: 4),
+                          width: isActive ? 24 : 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color: isActive ? Colors.white : Colors.white38,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        );
+                      }),
+                    ),
+                    const SizedBox(height: 32),
+
+                    // 다음 / 시작하기 버튼
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: _next,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          foregroundColor: AppColors.heroDark,
+                          padding: const EdgeInsets.symmetric(vertical: 18),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          elevation: 0,
+                        ),
+                        child: Text(
+                          isLast ? '시작하기' : '다음',
+                          style: const TextStyle(
+                            fontFamily: 'Pretendard',
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
+                    // 버튼 아래 여백 (건너뛰기 버튼과 높이 맞추기)
+                    const SizedBox(height: 44),
+                  ],
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );
   }
 }
 
-class _FeatureData {
-  final IconData icon;
+// ── 온보딩 데이터 ──────────────────────────────────────
+class _OnboardingData {
+  final String emoji;
   final String title;
-  final String description;
-  const _FeatureData({
-    required this.icon,
+  final String subtitle;
+  const _OnboardingData({
+    required this.emoji,
     required this.title,
-    required this.description,
+    required this.subtitle,
   });
 }
 
-class _FeatureCard extends StatelessWidget {
-  final _FeatureData data;
-  const _FeatureCard({required this.data});
+// ── 온보딩 슬라이드 ────────────────────────────────────
+class _OnboardingSlide extends StatelessWidget {
+  final _OnboardingData data;
+  const _OnboardingSlide({required this.data});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.borderLight),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.shadow,
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: AppColors.primarySurface,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(data.icon, color: AppColors.primary, size: 24),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(data.title, style: AppTextStyles.titleSmall),
-                const SizedBox(height: 4),
-                Text(
-                  data.description,
-                  style: AppTextStyles.bodySmall,
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Bottom CTA 섹션 ────────────────────────────────────
-class _BottomCTASection extends StatelessWidget {
-  final VoidCallback onStart;
-  const _BottomCTASection({required this.onStart});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.all(24),
-      padding: const EdgeInsets.all(32),
-      decoration: BoxDecoration(
-        gradient: AppColors.primaryGradient,
-        borderRadius: BorderRadius.circular(24),
-      ),
-      child: Column(
-        children: [
-          Text(
-            '지금 바로 건강을\n관리해보세요',
-            textAlign: TextAlign.center,
-            style: AppTextStyles.headlineLarge.copyWith(color: Colors.white),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            '무료로 시작할 수 있어요',
-            style: AppTextStyles.bodyMedium.copyWith(
-              color: Colors.white.withAlpha(204),
-            ),
-          ),
-          const SizedBox(height: 28),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: onStart,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.white,
-                foregroundColor: AppColors.primary,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
+    return SafeArea(
+      child: Padding(
+        // 하단은 버튼 영역 확보
+        padding: const EdgeInsets.fromLTRB(32, 0, 32, 200),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // 이모지 아이콘 원형 컨테이너
+            Container(
+              width: 128,
+              height: 128,
+              decoration: BoxDecoration(
+                color: Colors.white.withAlpha(25),
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white24, width: 1.5),
               ),
-              child: const Text(
-                '무료로 시작하기',
-                style: TextStyle(
-                  fontFamily: 'Pretendard',
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
+              child: Center(
+                child: Text(
+                  data.emoji,
+                  style: const TextStyle(fontSize: 56),
                 ),
               ),
             ),
-          ),
-        ],
+            const SizedBox(height: 52),
+
+            // 메인 타이틀
+            Text(
+              data.title,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontFamily: 'Pretendard',
+                fontSize: 28,
+                fontWeight: FontWeight.w800,
+                color: Colors.white,
+                height: 1.35,
+              ),
+            ),
+            const SizedBox(height: 18),
+
+            // 서브 타이틀
+            Text(
+              data.subtitle,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontFamily: 'Pretendard',
+                fontSize: 15,
+                fontWeight: FontWeight.w400,
+                color: Colors.white.withAlpha(200),
+                height: 1.7,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

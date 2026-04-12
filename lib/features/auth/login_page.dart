@@ -1,120 +1,268 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/auth/auth_provider.dart';
 import '../../core/router/app_router.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 
 /// 로그인 페이지
-/// 웹: pages/Login/LoginPage.tsx 대응
-/// - Google OAuth 로그인
-/// - 분할 화면 디자인 (웹 기준) → 모바일은 단일 화면
-class LoginPage extends StatelessWidget {
+/// 풀스크린 분할 디자인
+/// - 상단 60%: 다크 그린 그래디언트 + 로고
+/// - 하단 40%: 흰색 카드 + 소셜 로그인 + 비로그인 계속하기
+class LoginPage extends ConsumerWidget {
   const LoginPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: AppColors.textPrimary),
-          onPressed: () => context.go(AppRoutes.landing),
-        ),
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const SizedBox(height: 32),
+  Widget build(BuildContext context, WidgetRef ref) {
+    final size = MediaQuery.of(context).size;
 
-              // ── 로고 & 타이틀 ─────────────────────
-              Center(
+    Future<void> handleGoogleLogin() async {
+      await ref.read(authProvider.notifier).loginWithGoogle();
+      if (!context.mounted) return;
+      final auth = ref.read(authProvider);
+      if (auth.isAuthenticated) {
+        // 신규 가입이면 건강 정보 입력, 기존 회원이면 대시보드
+        context.go(auth.isNewUser ? AppRoutes.healthInput : AppRoutes.dashboard);
+      }
+    }
+
+    void handleGuestContinue() {
+      ref.read(authProvider.notifier).continueAsGuest();
+      context.go(AppRoutes.dashboard);
+    }
+
+    return Scaffold(
+      body: Stack(
+        children: [
+          // ── 상단 그래디언트 배경 ───────────────────────
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            height: size.height * 0.58,
+            child: Container(
+              decoration: const BoxDecoration(gradient: AppColors.heroGradient),
+            ),
+          ),
+
+          // ── 하단 흰색 배경 ────────────────────────────
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            height: size.height * 0.5,
+            child: const ColoredBox(color: AppColors.background),
+          ),
+
+          // ── 전체 콘텐츠 ───────────────────────────────
+          Column(
+            children: [
+              // 뒤로 가기 버튼
+              SafeArea(
+                bottom: false,
+                child: Align(
+                  alignment: Alignment.topLeft,
+                  child: IconButton(
+                    icon: const Icon(
+                      Icons.arrow_back_ios_new_rounded,
+                      color: Colors.white70,
+                      size: 20,
+                    ),
+                    onPressed: () => context.go(AppRoutes.landing),
+                  ),
+                ),
+              ),
+
+              // 로고 영역 (그린 배경 위)
+              Expanded(
+                flex: 5,
                 child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Container(
-                      width: 72,
-                      height: 72,
+                      width: 84,
+                      height: 84,
                       decoration: BoxDecoration(
-                        color: AppColors.primarySurface,
-                        borderRadius: BorderRadius.circular(20),
+                        color: Colors.white.withAlpha(25),
+                        borderRadius: BorderRadius.circular(26),
+                        border: Border.all(color: Colors.white24, width: 1.5),
                       ),
                       child: const Icon(
-                        Icons.favorite,
-                        color: AppColors.primary,
-                        size: 36,
+                        Icons.favorite_rounded,
+                        color: Colors.white,
+                        size: 42,
                       ),
                     ),
                     const SizedBox(height: 20),
-                    Text(
+                    const Text(
                       'MyHealthBuddy',
-                      style: AppTextStyles.logo,
+                      style: TextStyle(
+                        fontFamily: 'Pretendard',
+                        fontSize: 26,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                        letterSpacing: -0.5,
+                      ),
                     ),
                     const SizedBox(height: 8),
                     Text(
                       'AI 기반 건강 관리 서비스',
-                      style: AppTextStyles.bodyMedium.copyWith(
-                        color: AppColors.textMuted,
+                      style: TextStyle(
+                        fontFamily: 'Pretendard',
+                        fontSize: 14,
+                        fontWeight: FontWeight.w400,
+                        color: Colors.white.withAlpha(178),
                       ),
                     ),
                   ],
                 ),
               ),
 
-              const SizedBox(height: 56),
+              // 로그인 카드 (흰색 영역)
+              Expanded(
+                flex: 6,
+                child: Container(
+                  width: double.infinity,
+                  decoration: const BoxDecoration(
+                    color: AppColors.background,
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(32),
+                    ),
+                  ),
+                  padding: const EdgeInsets.fromLTRB(28, 36, 28, 0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text('시작하기', style: AppTextStyles.headlineMedium),
+                      const SizedBox(height: 8),
+                      Text(
+                        '소셜 계정으로 간편하게 로그인하세요',
+                        style: AppTextStyles.bodyMedium.copyWith(
+                          color: AppColors.textMuted,
+                        ),
+                      ),
+                      const SizedBox(height: 28),
 
-              // ── 로그인 안내 ───────────────────────
-              Text(
-                '시작하기',
-                style: Theme.of(context).textTheme.headlineMedium,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                '소셜 계정으로 간편하게 로그인하세요',
-                style: AppTextStyles.bodyMedium.copyWith(
-                  color: AppColors.textMuted,
-                ),
-              ),
+                      // Google 로그인 버튼
+                      _SocialButton(
+                        onTap: handleGoogleLogin,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Container(
+                              width: 22,
+                              height: 22,
+                              decoration: BoxDecoration(
+                                color: Colors.grey.shade100,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.g_mobiledata,
+                                size: 18,
+                                color: Colors.red,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Text(
+                              'Google로 계속하기',
+                              style: AppTextStyles.labelLarge.copyWith(
+                                color: AppColors.textDark,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 12),
 
-              const SizedBox(height: 32),
+                      // Apple 로그인 버튼
+                      _SocialButton(
+                        onTap: () {},
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(
+                              Icons.apple,
+                              size: 22,
+                              color: AppColors.textDark,
+                            ),
+                            const SizedBox(width: 12),
+                            Text(
+                              'Apple로 계속하기',
+                              style: AppTextStyles.labelLarge.copyWith(
+                                color: AppColors.textDark,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
 
-              // ── Google 로그인 버튼 ────────────────
-              _GoogleSignInButton(
-                onTap: () {
-                  // TODO: Google Sign-In 연동
-                  // 임시: 로그인 성공 후 health-input으로 이동
-                  context.go(AppRoutes.healthInput);
-                },
-              ),
+                      // ── 구분선 ─────────────────────────
+                      const SizedBox(height: 20),
+                      Row(
+                        children: [
+                          const Expanded(child: Divider()),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            child: Text(
+                              '또는',
+                              style: AppTextStyles.labelSmall.copyWith(
+                                color: AppColors.textMuted,
+                              ),
+                            ),
+                          ),
+                          const Expanded(child: Divider()),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
 
-              const SizedBox(height: 24),
+                      // ── 비로그인으로 계속하기 ──────────
+                      TextButton(
+                        onPressed: handleGuestContinue,
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                        child: Text(
+                          '로그인 없이 둘러보기',
+                          style: AppTextStyles.labelLarge.copyWith(
+                            color: AppColors.textMuted,
+                          ),
+                        ),
+                      ),
 
-              // ── 안내 문구 ─────────────────────────
-              Center(
-                child: Text(
-                  '로그인 시 서비스 이용약관 및 개인정보처리방침에\n동의하는 것으로 간주됩니다.',
-                  textAlign: TextAlign.center,
-                  style: AppTextStyles.labelSmall.copyWith(
-                    color: AppColors.textMuted,
-                    height: 1.6,
+                      const SizedBox(height: 12),
+
+                      // 이용약관 안내
+                      Center(
+                        child: Text(
+                          '로그인 시 서비스 이용약관 및\n개인정보처리방침에 동의하는 것으로 간주됩니다.',
+                          textAlign: TextAlign.center,
+                          style: AppTextStyles.labelSmall.copyWith(
+                            color: AppColors.textMuted,
+                            height: 1.6,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
             ],
           ),
-        ),
+        ],
       ),
     );
   }
 }
 
-/// Google 로그인 버튼
-class _GoogleSignInButton extends StatelessWidget {
+// ── 소셜 버튼 공통 래퍼 ────────────────────────────────
+class _SocialButton extends StatelessWidget {
   final VoidCallback onTap;
-  const _GoogleSignInButton({required this.onTap});
+  final Widget child;
+  const _SocialButton({required this.onTap, required this.child});
 
   @override
   Widget build(BuildContext context) {
@@ -130,28 +278,7 @@ class _GoogleSignInButton extends StatelessWidget {
             borderRadius: BorderRadius.circular(14),
             border: Border.all(color: AppColors.borderDefault),
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // Google 아이콘 (텍스트로 대체, 실제로는 SVG 사용 권장)
-              Container(
-                width: 24,
-                height: 24,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.g_mobiledata, size: 20, color: Colors.red),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                'Google로 계속하기',
-                style: AppTextStyles.labelLarge.copyWith(
-                  color: AppColors.textDark,
-                ),
-              ),
-            ],
-          ),
+          child: child,
         ),
       ),
     );
