@@ -8,6 +8,8 @@ import '../../features/health_input/health_input_page.dart';
 import '../../features/result/result_page.dart';
 import '../../features/dashboard/dashboard_page.dart';
 import '../../features/challenge/challenge_page.dart';
+import '../../features/calendar/challenge_calendar_page.dart';
+import '../../features/friends/friends_page.dart';
 
 /// 앱 라우트 경로 상수
 /// 웹 저장소 경로와 동일하게 맞춤
@@ -18,6 +20,8 @@ abstract final class AppRoutes {
   static const String result = '/result';
   static const String dashboard = '/dashboard';
   static const String challenge = '/challenge';
+  static const String calendar = '/calendar';
+  static const String friends = '/friends';
 }
 
 /// GoRouter 인스턴스 - Riverpod Provider로 제공
@@ -71,6 +75,26 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.challenge,
         name: 'challenge',
         builder: (context, state) => const ChallengePage(),
+      ),
+
+      // 7. 챌린지 달성 캘린더
+      GoRoute(
+        path: AppRoutes.calendar,
+        name: 'calendar',
+        builder: (context, state) => const ChallengeCalendarPage(),
+      ),
+
+      // 8. 친구
+      GoRoute(
+        path: AppRoutes.friends,
+        name: 'friends',
+        builder: (context, state) {
+          final tab = int.tryParse(
+                state.uri.queryParameters['tab'] ?? '0',
+              ) ??
+              0;
+          return FriendsPage(initialTab: tab);
+        },
       ),
     ],
   );
