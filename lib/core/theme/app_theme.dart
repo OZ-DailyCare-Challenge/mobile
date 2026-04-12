@@ -119,25 +119,36 @@ abstract final class AppTheme {
           space: 1,
         ),
 
-        // ── BottomNavigationBar ────────────────────────
-        bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+        // ── NavigationBar (Material 3) ─────────────────
+        navigationBarTheme: NavigationBarThemeData(
           backgroundColor: AppColors.surface,
-          selectedItemColor: AppColors.primary,
-          unselectedItemColor: AppColors.textMuted,
-          showSelectedLabels: true,
-          showUnselectedLabels: true,
-          type: BottomNavigationBarType.fixed,
+          indicatorColor: AppColors.primarySurface,
+          surfaceTintColor: Colors.transparent,
           elevation: 8,
-          selectedLabelStyle: TextStyle(
-            fontFamily: 'Pretendard',
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-          ),
-          unselectedLabelStyle: TextStyle(
-            fontFamily: 'Pretendard',
-            fontSize: 11,
-            fontWeight: FontWeight.w400,
-          ),
+          height: 68,
+          labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+          iconTheme: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.selected)) {
+              return const IconThemeData(color: AppColors.primary, size: 24);
+            }
+            return const IconThemeData(color: AppColors.textMuted, size: 24);
+          }),
+          labelTextStyle: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.selected)) {
+              return const TextStyle(
+                fontFamily: 'Pretendard',
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: AppColors.primary,
+              );
+            }
+            return const TextStyle(
+              fontFamily: 'Pretendard',
+              fontSize: 11,
+              fontWeight: FontWeight.w400,
+              color: AppColors.textMuted,
+            );
+          }),
         ),
 
         // ── Chip ───────────────────────────────────────
